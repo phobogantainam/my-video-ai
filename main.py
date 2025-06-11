@@ -6,63 +6,66 @@ from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# --- PHẦN 1: CẤU HÌNH BAN ĐẦU ---
+# --- PART 1: INITIAL CONFIGURATION ---
 
-# Tải các biến môi trường từ file .env (chỉ có tác dụng khi chạy trên máy bạn)
+# Load environment variables from .env file (only works when running locally)
 load_dotenv()
-# Lấy các API key từ BIẾN MÔI TRƯỜNG mà chúng ta đã thiết lập trên Render
+
+# Get API keys from the ENVIRONMENT VARIABLES we set on Render
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 HAILOU_API_KEY = os.getenv("HAILOU_API_KEY")
 
-# Cấu hình API Gemini
+# Configure Gemini API
 genai.configure(api_key=GOOGLE_API_KEY)
 gemini_model = genai.GenerativeModel('gemini-pro')
 
-# Điểm cuối API của Hailou
+# Hailou AI API Endpoints
 HAILOU_TEXT_TO_IMAGE_URL = "https://api.minimax.io/v1/texttoimage"
 HAILOU_IMAGE_TO_VIDEO_URL = "https://api.minimax.io/v1/imagetovideo"
 
-# Khởi tạo ứng dụng web Flask (khung của xưởng sản xuất)
+# Initialize Flask web application
 app = Flask(__name__)
-CORS(app) # Cho phép các trang web khác gọi đến API này
-# --- PHẦN 2: CÁC HÀM CHỨC NĂNG CỦA DÂY CHUYỀN SẢN XUẤT ---
+CORS(app) # Allow other websites to call this API
+
+# --- PART 2: CORE APPLICATION FUNCTIONS ---
+
 def tao_nhieu_prompt_chuyen_sau(y_tuong):
-    print(f"Bắt đầu tạo nhiều prompt từ ý tưởng: '{y_tuong}'...")
-    super_prompt = f"""Bạn là một Giám đốc Sáng tạo chuyên nghiệp, chuyên gia về AI tạo hình ảnh. Nhiệm vụ của bạn là nhận một ý tưởng đơn giản và phát triển nó thành một danh sách gồm 4 biến thể prompt chi tiết bằng tiếng Anh. Mỗi prompt phải độc đáo, khám phá một phong cách nghệ thuật hoặc một góc nhìn khác nhau. Yêu cầu cho mỗi prompt: 1. Cực kỳ chi tiết: Mô tả cảnh vật, nhân vật, hành động, cảm xúc. 2. Từ khóa chuyên nghiệp: Bao gồm các thuật ngữ về ánh sáng (ví dụ: cinematic lighting, volumetric light), phong cách (ví dụ: photorealistic, epic fantasy art, anime style, cyberpunk), chất lượng (ví dụ: 8K, ultra-detailed, sharp focus), và ống kính (ví dụ: wide-angle shot, close-up). 3. Đa dạng: Mỗi prompt phải khác biệt rõ rệt về phong cách hoặc nội dung. Hãy trả về kết quả dưới dạng một chuỗi JSON hợp lệ, là một danh sách của các đối tượng. Mỗi đối tượng trong danh sách phải có 2 key: "style" (một chuỗi ngắn mô tả phong cách) và "prompt" (chuỗi prompt chi tiết bằng tiếng Anh). Bây giờ, hãy thực hiện nhiệm vụ với ý tưởng sau đây: Ý tưởng: "{y_tuong}" """
+    print(f"1. Using Gemini to generate prompts from idea: '{y_tuong}'...")
+    super_prompt = f"""You are a creative director and an expert in AI image generation. Your task is to take a simple idea and expand it into a list of 4 detailed and diverse prompts in English. Each prompt must be unique, exploring different art styles, perspectives, or moods. Requirements for each prompt: 1. Extremely detailed: Describe the scene, characters, actions, and emotions. 2. Professional keywords: Include terms for lighting (e.g., cinematic lighting, volumetric light), style (e.g., photorealistic, epic fantasy art, anime style, cyberpunk), quality (e.g., 8K, ultra-detailed, sharp focus), and camera lenses (e.g., wide-angle shot, close-up). 3. Diverse: Each prompt should be distinctly different in style or content. Return the result as a valid JSON array of objects. Each object must have two keys: "style" (a short string describing the style) and "prompt" (the detailed English prompt). Now, perform the task for the following idea: Idea: "{y_tuong}" """
     try:
         response = gemini_model.generate_content(super_prompt)
         cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
         prompts = json.loads(cleaned_response)
-        print(f"-> Đã tạo thành công {len(prompts)} biến thể prompt.")
+        print(f"-> Successfully generated {len(prompts)} prompt variants.")
         return prompts
     except Exception as e:
-        print(f"Lỗi khi tạo và phân tích JSON từ Gemini: {e}")
+        print(f"Error generating or parsing JSON from Gemini: {e}")
         return None
 
 def tao_hinh_anh_tu_prompt(prompt):
-    print("  Đang gửi yêu cầu tạo ảnh đến Hailou AI...")
+    print("2. Sending image generation request to Hailou AI...")
     headers = {"Authorization": f"Bearer {HAILOU_API_KEY}", "Content-Type": "application/json"}
-    payload = {"prompt": prompt, "model": "MiniMax-Văn bản-01"} # Thay bằng model phù hợp
+    payload = {"prompt": prompt, "model": "MiniMax-Văn bản-01"}
     response = requests.post(HAILOU_TEXT_TO_IMAGE_URL, json=payload, headers=headers)
     if response.status_code == 200:
-        image_url = response.json().get("data")[0].get("url") 
-        print(f"  -> Đã tạo ảnh thành công.")
+        image_url = response.json().get("data")[0].get("url")
+        print("-> Image created successfully.")
         return image_url
     else:
-        print(f"  Lỗi khi tạo ảnh: {response.text}")
+        print(f"-> Error creating image: {response.text}")
         return None
 
 def tao_video_tu_anh(image_url):
-    print("    Đang gửi yêu cầu tạo chuyển động cho ảnh...")
+    print("3. Sending image animation request to Hailou AI...")
     headers = {"Authorization": f"Bearer {HAILOU_API_KEY}", "Content-Type": "application/json"}
     payload = {"image_url": image_url}
     response = requests.post(HAILOU_IMAGE_TO_VIDEO_URL, json=payload, headers=headers)
     if response.status_code == 200:
         video_url = response.json().get("data")[0].get("url")
-        print(f"    -> Đã tạo video thành công.")
+        print("-> Video created successfully.")
         return video_url
     else:
-        print(f"    Lỗi khi tạo video: {response.text}")
+        print(f"-> Error creating video: {response.text}")
         return None
 
 def chay_quy_trinh_hang_loat(y_tuong):
@@ -71,7 +74,7 @@ def chay_quy_trinh_hang_loat(y_tuong):
     ket_qua_cuoi_cung = []
     for i, item in enumerate(danh_sach_prompts):
         style, prompt = item.get("style"), item.get("prompt")
-        print(f"\n--- Đang xử lý biến thể {i+1}/{len(danh_sach_prompts)}: Phong cách '{style}' ---")
+        print(f"\n--- Processing variant {i+1}/{len(danh_sach_prompts)}: Style '{style}' ---")
         image_url = tao_hinh_anh_tu_prompt(prompt)
         if image_url:
             video_url = tao_video_tu_anh(image_url)
@@ -79,21 +82,21 @@ def chay_quy_trinh_hang_loat(y_tuong):
                 ket_qua_cuoi_cung.append({"style": style, "prompt": prompt, "video_url": video_url})
     return ket_qua_cuoi_cung
 
-# --- PHẦN 3: CỔNG VÀO CỦA XƯỞNG SẢN XUẤT ---
-# Đây là nơi nhận đơn đặt hàng từ Internet
+# --- PART 3: API ENDPOINT ---
+# This is the "door" that receives requests from the internet
 
 @app.route('/create-multiple-videos', methods=['POST'])
 def handle_multiple_video_creation():
     data = request.get_json()
     y_tuong = data.get('idea')
-    if not y_tuong: return jsonify({"error": "Vui lòng nhập ý tưởng"}), 400
+    if not y_tuong: return jsonify({"error": "Please provide an idea"}), 400
     try:
         results = chay_quy_trinh_hang_loat(y_tuong)
         if results: return jsonify({"results": results})
-        else: return jsonify({"error": "Không thể tạo bất kỳ video nào"}), 500
+        else: return jsonify({"error": "Could not create any video"}), 500
     except Exception as e:
-        return jsonify({"error": f"Lỗi hệ thống: {str(e)}"}), 500
+        return jsonify({"error": f"System error: {str(e)}"}), 500
 
-# Dòng này chỉ dùng để chạy thử trên máy của bạn
+# This line is only for testing on your own computer
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
