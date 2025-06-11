@@ -3,7 +3,7 @@ import json
 import requests
 import google.generativeai as genai
 from dotenv import load_dotenv
-from flask import Flask, request, 
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 # --- PHẦN 1: CẤU HÌNH BAN ĐẦU ---
@@ -12,21 +12,20 @@ from flask_cors import CORS
 load_dotenv()
 
 # Lấy các API key từ biến môi trường đã tải
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-HAILOU_API_KEY = os.getenv("HAILOU_API_KEY")
+GOOGLE_API_KEY = os.getenv("AIzaSyCAnwRfbRkJFLOpRAYv7gk0Bs6C65_k6Gk")
+HAILOU_API_KEY = os.getenv("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiJwaG8iLCJVc2VyTmFtZSI6InBobyIsIkFjY291bnQiOiIiLCJTdWJqZWN0SUQiOiIxOTMyNTMxNzA4MzQ3ODE0NzI3IiwiUGhvbmUiOiIiLCJHcm91cElEIjoiMTkzMjUzMTcwODMzOTQyNjExOSIsIlBhZ2VOYW1lIjoiIiwiTWFpbCI6InBob2JvZ2FudGFpbmFtQGdtYWlsLmNvbSIsIkNyZWF0ZVRpbWUiOiIyMDI1LTA2LTExIDA3OjQ1OjIxIiwiVG9rZW5UeXBlIjoxLCJpc3MiOiJtaW5pbWF4In0.YSYVh2GIVdVlOMIC2p57Ul9AJLTDnd6AzTrK9W-JqLGnVR6YAwyWNuQBp4YMyke3h7-rMxLm9FDs-9rBkMz3nzE8VxYI4AmtDRi1KWjskUsrSVGq_YFZfxOLMAucPfc_2l_Iq7ksUfUK94XayObBWyORbhuziiVl9kBQl7QdRie8t6s8pWt9Ipbqm_uBXAjpO0Ur3roeSjIP7j6zVTCviAT2oaNgdFglInbZ8x28nRcmdf3x0yAwvJ1RkxiHJiBdCGY2kQKkmmiurKDMEXCkVpr4yUP1PambgJrxezwv_Jf7wSxtjGwoLxkM4xyYLVyMmTbMFXBjDUeo0JgOmMfDbA")
 
 # Cấu hình API Gemini
 genai.configure(api_key=GOOGLE_API_KEY)
 gemini_model = genai.GenerativeModel('gemini-pro')
 
-# Điểm cuối API của Hailou (URL này là ví dụ, bạn cần thay bằng URL đúng từ tài liệu của họ)
-HAILOU_TEXT_TO_IMAGE_URL = "https://api.minimax.io/v1/texttoimage" 
+# Điểm cuối API của Hailou (thay thế bằng URL đúng từ tài liệu của họ)
+HAILOU_TEXT_TO_IMAGE_URL = "https://api.minimax.io/v1/texttoimage"
 HAILOU_IMAGE_TO_VIDEO_URL = "https://api.minimax.io/v1/imagetovideo"
 
 # Khởi tạo ứng dụng web Flask (khung của xưởng sản xuất)
 app = Flask(__name__)
-CORS(app)
-
+CORS(app) # Cho phép các trang web khác gọi đến API này
 # --- PHẦN 2: CÁC HÀM CHỨC NĂNG CỦA DÂY CHUYỀN SẢN XUẤT ---
 
 def tao_nhieu_prompt_chuyen_sau(y_tuong):
