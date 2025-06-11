@@ -42,32 +42,52 @@ def tao_nhieu_prompt_chuyen_sau(y_tuong):
         print(f"Error generating or parsing JSON from Gemini: {e}")
         return None
 
+# HÀM TẠO ẢNH ĐÃ NÂNG CẤP
 def tao_hinh_anh_tu_prompt(prompt):
     print("2. Sending image generation request to Hailou AI...")
     headers = {"Authorization": f"Bearer {HAILOU_API_KEY}", "Content-Type": "application/json"}
     payload = {"prompt": prompt, "model": "image-01"}
     response = requests.post(HAILOU_TEXT_TO_IMAGE_URL, json=payload, headers=headers)
-    print(f"Hailou Image Response JSON: {response.json()}")
+
+    json_response = response.json()
+    print(f"Hailou Image Response JSON: {json_response}")
+
     if response.status_code == 200:
-        image_url = response.json().get("data")[0].get("url")
-        print("-> Image created successfully.")
-        return image_url
+        data_list = json_response.get("data")
+        if data_list and len(data_list) > 0:
+            image_url = data_list[0].get("url")
+            print("-> Image created successfully.")
+            return image_url
+        else:
+            error_message = json_response.get('base_resp', {}).get('status_msg', 'Unknown error from Hailou.')
+            print(f"-> Error from Hailou API: {error_message}")
+            return None
     else:
-        print(f"-> Error creating image: {response.text}")
+        print(f"-> HTTP Error creating image: {response.text}")
         return None
 
+# HÀM TẠO VIDEO ĐÃ NÂNG CẤP
 def tao_video_tu_anh(image_url):
     print("3. Sending image animation request to Hailou AI...")
     headers = {"Authorization": f"Bearer {HAILOU_API_KEY}", "Content-Type": "application/json"}
     payload = {"image_url": image_url}
     response = requests.post(HAILOU_IMAGE_TO_VIDEO_URL, json=payload, headers=headers)
-    print(f"Hailou Video Response JSON: {response.json()}")
+
+    json_response = response.json()
+    print(f"Hailou Video Response JSON: {json_response}")
+
     if response.status_code == 200:
-        video_url = response.json().get("data")[0].get("url")
-        print("-> Video created successfully.")
-        return video_url
+        data_list = json_response.get("data")
+        if data_list and len(data_list) > 0:
+            video_url = data_list[0].get("url")
+            print("-> Video created successfully.")
+            return video_url
+        else:
+            error_message = json_response.get('base_resp', {}).get('status_msg', 'Unknown error from Hailou.')
+            print(f"-> Error from Hailou API: {error_message}")
+            return None
     else:
-        print(f"-> Error creating video: {response.text}")
+        print(f"-> HTTP Error creating video: {response.text}")
         return None
 
 def chay_quy_trinh_hang_loat(y_tuong):
