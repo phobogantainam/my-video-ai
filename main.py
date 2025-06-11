@@ -8,18 +8,17 @@ from flask_cors import CORS
 
 # --- PHẦN 1: CẤU HÌNH BAN ĐẦU ---
 
-# Tải các biến môi trường từ file .env để Python có thể đọc được
+# Tải các biến môi trường từ file .env (chỉ có tác dụng khi chạy trên máy bạn)
 load_dotenv()
-
-# Lấy các API key từ biến môi trường đã tải
-GOOGLE_API_KEY = os.getenv("AIzaSyCAnwRfbRkJFLOpRAYv7gk0Bs6C65_k6Gk")
-HAILOU_API_KEY = os.getenv("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiJwaG8iLCJVc2VyTmFtZSI6InBobyIsIkFjY291bnQiOiIiLCJTdWJqZWN0SUQiOiIxOTMyNTMxNzA4MzQ3ODE0NzI3IiwiUGhvbmUiOiIiLCJHcm91cElEIjoiMTkzMjUzMTcwODMzOTQyNjExOSIsIlBhZ2VOYW1lIjoiIiwiTWFpbCI6InBob2JvZ2FudGFpbmFtQGdtYWlsLmNvbSIsIkNyZWF0ZVRpbWUiOiIyMDI1LTA2LTExIDA3OjQ1OjIxIiwiVG9rZW5UeXBlIjoxLCJpc3MiOiJtaW5pbWF4In0.YSYVh2GIVdVlOMIC2p57Ul9AJLTDnd6AzTrK9W-JqLGnVR6YAwyWNuQBp4YMyke3h7-rMxLm9FDs-9rBkMz3nzE8VxYI4AmtDRi1KWjskUsrSVGq_YFZfxOLMAucPfc_2l_Iq7ksUfUK94XayObBWyORbhuziiVl9kBQl7QdRie8t6s8pWt9Ipbqm_uBXAjpO0Ur3roeSjIP7j6zVTCviAT2oaNgdFglInbZ8x28nRcmdf3x0yAwvJ1RkxiHJiBdCGY2kQKkmmiurKDMEXCkVpr4yUP1PambgJrxezwv_Jf7wSxtjGwoLxkM4xyYLVyMmTbMFXBjDUeo0JgOmMfDbA")
+# Lấy các API key từ BIẾN MÔI TRƯỜNG mà chúng ta đã thiết lập trên Render
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+HAILOU_API_KEY = os.getenv("HAILOU_API_KEY")
 
 # Cấu hình API Gemini
 genai.configure(api_key=GOOGLE_API_KEY)
 gemini_model = genai.GenerativeModel('gemini-pro')
 
-# Điểm cuối API của Hailou (thay thế bằng URL đúng từ tài liệu của họ)
+# Điểm cuối API của Hailou
 HAILOU_TEXT_TO_IMAGE_URL = "https://api.minimax.io/v1/texttoimage"
 HAILOU_IMAGE_TO_VIDEO_URL = "https://api.minimax.io/v1/imagetovideo"
 
@@ -27,7 +26,6 @@ HAILOU_IMAGE_TO_VIDEO_URL = "https://api.minimax.io/v1/imagetovideo"
 app = Flask(__name__)
 CORS(app) # Cho phép các trang web khác gọi đến API này
 # --- PHẦN 2: CÁC HÀM CHỨC NĂNG CỦA DÂY CHUYỀN SẢN XUẤT ---
-
 def tao_nhieu_prompt_chuyen_sau(y_tuong):
     print(f"Bắt đầu tạo nhiều prompt từ ý tưởng: '{y_tuong}'...")
     super_prompt = f"""Bạn là một Giám đốc Sáng tạo chuyên nghiệp, chuyên gia về AI tạo hình ảnh. Nhiệm vụ của bạn là nhận một ý tưởng đơn giản và phát triển nó thành một danh sách gồm 4 biến thể prompt chi tiết bằng tiếng Anh. Mỗi prompt phải độc đáo, khám phá một phong cách nghệ thuật hoặc một góc nhìn khác nhau. Yêu cầu cho mỗi prompt: 1. Cực kỳ chi tiết: Mô tả cảnh vật, nhân vật, hành động, cảm xúc. 2. Từ khóa chuyên nghiệp: Bao gồm các thuật ngữ về ánh sáng (ví dụ: cinematic lighting, volumetric light), phong cách (ví dụ: photorealistic, epic fantasy art, anime style, cyberpunk), chất lượng (ví dụ: 8K, ultra-detailed, sharp focus), và ống kính (ví dụ: wide-angle shot, close-up). 3. Đa dạng: Mỗi prompt phải khác biệt rõ rệt về phong cách hoặc nội dung. Hãy trả về kết quả dưới dạng một chuỗi JSON hợp lệ, là một danh sách của các đối tượng. Mỗi đối tượng trong danh sách phải có 2 key: "style" (một chuỗi ngắn mô tả phong cách) và "prompt" (chuỗi prompt chi tiết bằng tiếng Anh). Bây giờ, hãy thực hiện nhiệm vụ với ý tưởng sau đây: Ý tưởng: "{y_tuong}" """
