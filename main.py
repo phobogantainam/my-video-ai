@@ -3,7 +3,8 @@ import json
 import requests
 import google.generativeai as genai
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify
+from flask import Flask, request, 
+from flask_cors import CORS
 
 # --- PHẦN 1: CẤU HÌNH BAN ĐẦU ---
 
@@ -24,6 +25,7 @@ HAILOU_IMAGE_TO_VIDEO_URL = "https://api.minimax.io/v1/imagetovideo"
 
 # Khởi tạo ứng dụng web Flask (khung của xưởng sản xuất)
 app = Flask(__name__)
+CORS(app)
 
 # --- PHẦN 2: CÁC HÀM CHỨC NĂNG CỦA DÂY CHUYỀN SẢN XUẤT ---
 
