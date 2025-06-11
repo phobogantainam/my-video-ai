@@ -20,7 +20,7 @@ genai.configure(api_key=GOOGLE_API_KEY)
 gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 # Hailou AI API Endpoints
-HAILOU_TEXT_TO_IMAGE_URL = "https://api.minimax.io/v1/texttoimage"
+HAILOU_TEXT_TO_IMAGE_URL = "https://api.minimax.io/v1/text_to_image"
 HAILOU_IMAGE_TO_VIDEO_URL = "https://api.minimax.io/v1/imagetovideo"
 
 # Initialize Flask web application
