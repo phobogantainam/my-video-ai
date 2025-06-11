@@ -47,6 +47,7 @@ def tao_hinh_anh_tu_prompt(prompt):
     headers = {"Authorization": f"Bearer {HAILOU_API_KEY}", "Content-Type": "application/json"}
     payload = {"prompt": prompt, "model": "image-01"}
     response = requests.post(HAILOU_TEXT_TO_IMAGE_URL, json=payload, headers=headers)
+    print(f"Hailou Image Response JSON: {response.json()}")
     if response.status_code == 200:
         image_url = response.json().get("data")[0].get("url")
         print("-> Image created successfully.")
@@ -60,6 +61,7 @@ def tao_video_tu_anh(image_url):
     headers = {"Authorization": f"Bearer {HAILOU_API_KEY}", "Content-Type": "application/json"}
     payload = {"image_url": image_url}
     response = requests.post(HAILOU_IMAGE_TO_VIDEO_URL, json=payload, headers=headers)
+    print(f"Hailou Video Response JSON: {response.json()}")
     if response.status_code == 200:
         video_url = response.json().get("data")[0].get("url")
         print("-> Video created successfully.")
