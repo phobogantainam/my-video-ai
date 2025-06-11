@@ -20,7 +20,7 @@ genai.configure(api_key=GOOGLE_API_KEY)
 gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 # Hailou AI API Endpoints
-HAILOU_TEXT_TO_IMAGE_URL = "https://api.minimax.io/v1/images/generations"
+HAILOU_TEXT_TO_IMAGE_URL = "https://api.minimax.io/v1/image_generation"
 HAILOU_IMAGE_TO_VIDEO_URL = "https://api.minimax.io/v1/imagetovideo"
 
 # Initialize Flask web application
@@ -45,7 +45,7 @@ def tao_nhieu_prompt_chuyen_sau(y_tuong):
 def tao_hinh_anh_tu_prompt(prompt):
     print("2. Sending image generation request to Hailou AI...")
     headers = {"Authorization": f"Bearer {HAILOU_API_KEY}", "Content-Type": "application/json"}
-    payload = {"prompt": prompt, "model": "MiniMax-Văn bản-01"}
+    payload = {"prompt": prompt, "model": "image-01"}
     response = requests.post(HAILOU_TEXT_TO_IMAGE_URL, json=payload, headers=headers)
     if response.status_code == 200:
         image_url = response.json().get("data")[0].get("url")
