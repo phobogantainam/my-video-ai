@@ -17,7 +17,7 @@ HAILOU_API_KEY = os.getenv("HAILOU_API_KEY")
 
 # Configure Gemini API
 genai.configure(api_key=GOOGLE_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-1.0-pro')
+gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 # Hailou AI API Endpoints
 HAILOU_TEXT_TO_IMAGE_URL = "https://api.minimax.io/v1/texttoimage"
