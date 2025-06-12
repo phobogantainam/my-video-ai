@@ -96,7 +96,7 @@ def handle_script_generation():
         print(f"\n--- Generating video for Scene {i+1} ---")
 
 try:
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-pro-latest')
     generation_request = []
 
     if scene_type == 'image':
