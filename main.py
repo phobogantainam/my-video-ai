@@ -1,124 +1,144 @@
 import os
-import json
-import requests
 import google.generativeai as genai
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import mimetypes
+from PIL import Image
+import io
+import base64
 
 # --- PART 1: INITIAL CONFIGURATION ---
-
-# Load environment variables from .env file (only works when running locally)
 load_dotenv()
-
-# Get API keys from the ENVIRONMENT VARIABLES we set on Render
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-HAILOU_API_KEY = os.getenv("HAILOU_API_KEY")
 
-# Configure Gemini API
 genai.configure(api_key=GOOGLE_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
-# Hailou AI API Endpoints
-HAILOU_TEXT_TO_IMAGE_URL = "https://api.minimax.io/v1/image_generation"
-HAILOU_IMAGE_TO_VIDEO_URL = "https://api.minimax.io/v1/imagetovideo"
+# --- PART 2: CORE APPLICATION LOGIC ---
 
-# Initialize Flask web application
+def tao_video_tu_dong(prompt, image_data_base64=None):
+    """
+    Hàm này tạo video từ text hoặc từ image + text.
+    Nó sẽ trả về file video đã được tạo.
+    """
+    try:
+        model_name = 'gemini-1.5-flash-latest'
+        model = genai.GenerativeModel(model_name)
+        
+        # Chuẩn bị nội dung yêu cầu
+        request_contents = [prompt]
+
+        if image_data_base64:
+            # Nếu có hình ảnh, giải mã base64 và chuẩn bị dữ liệu ảnh
+            image_bytes = base64.b64decode(image_data_base64.split(',')[1])
+            img = Image.open(io.BytesIO(image_bytes))
+            
+            # Thêm hình ảnh vào yêu cầu
+            request_contents.insert(0, img)
+            print(f"-> Generating video from image with prompt: '{prompt}'")
+        else:
+            print(f"-> Generating video from text: '{prompt}'")
+
+        # Gọi API để tạo video
+        response = model.generate_content(request_contents, request_options={"timeout": 600})
+        
+        # Xử lý kết quả trả về
+        video_file = response.candidates[0].content.parts[0].file_data
+        print(f"-> Video generated successfully. Mime type: {video_file.mime_type}")
+        return video_file
+
+    except Exception as e:
+        print(f"Error during video generation: {e}")
+        return None
+
+# --- PART 3: FLASK API ENDPOINT ---
 app = Flask(__name__)
-CORS(app) # Allow other websites to call this API
+CORS(app)
 
-# --- PART 2: CORE APPLICATION FUNCTIONS ---
+@app.route('/generate-from-script', methods=['POST'])
+def handle_script_generation():
+    script_data = request.get_json()
+    if not script_data or 'scenes' not in script_data:
+        return jsonify({"error": "Invalid script data provided"}), 400
 
-def tao_nhieu_prompt_chuyen_sau(y_tuong):
-    print(f"1. Using Gemini to generate prompts from idea: '{y_tuong}'...")
-    super_prompt = f"""You are a creative director and an expert in AI image generation. Your task is to take a simple idea and expand it into a list of 2 detailed and diverse prompts in English. Each prompt must be unique, exploring different art styles, perspectives, or moods. Requirements for each prompt: 1. Extremely detailed: Describe the scene, characters, actions, and emotions. 2. Professional keywords: Include terms for lighting (e.g., cinematic lighting, volumetric light), style (e.g., photorealistic, epic fantasy art, anime style, cyberpunk), quality (e.g., 8K, ultra-detailed, sharp focus), and camera lenses (e.g., wide-angle shot, close-up). 3. Diverse: Each prompt should be distinctly different in style or content. Return the result as a valid JSON array of objects. Each object must have two keys: "style" (a short string describing the style) and "prompt" (the detailed English prompt). Now, perform the task for the following idea: Idea: "{y_tuong}" """
-    try:
-        response = gemini_model.generate_content(super_prompt)
-        cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
-        prompts = json.loads(cleaned_response)
-        print(f"-> Successfully generated {len(prompts)} prompt variants.")
-        return prompts
-    except Exception as e:
-        print(f"Error generating or parsing JSON from Gemini: {e}")
-        return None
+    scenes = script_data['scenes']
+    video_results = []
+    
+    # Tải file lên Google trước, sau đó tạo video
+    # Điều này hiệu quả hơn cho việc xử lý nhiều file
+    uploaded_files = {}
 
-# HÀM TẠO ẢNH ĐÃ NÂNG CẤP
-def tao_hinh_anh_tu_prompt(prompt):
-    print("2. Sending image generation request to Hailou AI...")
-    headers = {"Authorization": f"Bearer {HAILOU_API_KEY}", "Content-Type": "application/json"}
-    payload = {"prompt": prompt, "model": "image-01"}
-    response = requests.post(HAILOU_TEXT_TO_IMAGE_URL, json=payload, headers=headers)
+    print("--- Starting script processing ---")
+    
+    # Bước 1: Tải tất cả các file ảnh lên trước
+    for i, scene in enumerate(scenes):
+        if scene.get('type') == 'image':
+            try:
+                print(f"Uploading scene {i+1} image...")
+                image_base64 = scene.get('content')
+                image_bytes = base64.b64decode(image_base64.split(',')[1])
+                image_file = io.BytesIO(image_bytes)
+                
+                # Upload file và lấy file object
+                google_file = genai.upload_file(path=image_file)
+                uploaded_files[i] = google_file
+                print(f"-> Image {i+1} uploaded successfully.")
+            except Exception as e:
+                print(f"Error uploading image {i+1}: {e}")
+                uploaded_files[i] = None
+    
+    # Bước 2: Tạo video cho từng cảnh
+    for i, scene in enumerate(scenes):
+        scene_type = scene.get('type')
+        content = scene.get('content')
+        prompt = scene.get('prompt', "Animate this scene beautifully.") # Prompt mặc định
+        
+        print(f"\n--- Generating video for Scene {i+1} ---")
 
-    json_response = response.json()
-    print(f"Hailou Image Response JSON: {json_response}")
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash-latest')
+            generation_request = []
 
-    if response.status_code == 200:
-        data_list = json_response.get("data")
-        if data_list and len(data_list) > 0:
-            image_url = data_list[0].get("url")
-            print("-> Image created successfully.")
-            return image_url
-        else:
-            error_message = json_response.get('base_resp', {}).get('status_msg', 'Unknown error from Hailou.')
-            print(f"-> Error from Hailou API: {error_message}")
-            return None
-    else:
-        print(f"-> HTTP Error creating image: {response.text}")
-        return None
+            if scene_type == 'image':
+                uploaded_file = uploaded_files.get(i)
+                if uploaded_file:
+                    generation_request.append(uploaded_file) # Thêm file đã upload
+                    generation_request.append(prompt)
+                    print(f"-> Requesting video from image with prompt: '{prompt}'")
+                else:
+                    raise Exception("Image for this scene failed to upload.")
+            else: # text scene
+                generation_request.append(prompt)
+                print(f"-> Requesting video from text: '{prompt}'")
+            
+            # Gọi API
+            response = model.generate_content(generation_request, request_options={"timeout": 600})
+            video_part = response.candidates[0].content.parts[0]
+            
+            # Lưu kết quả dưới dạng base64 để gửi về frontend
+            video_base64 = base64.b64encode(video_part.blob).decode('utf-8')
+            mime_type = video_part.mime_type
 
-# HÀM TẠO VIDEO ĐÃ NÂNG CẤP
-def tao_video_tu_anh(image_url):
-    print("3. Sending image animation request to Hailou AI...")
-    headers = {"Authorization": f"Bearer {HAILOU_API_KEY}", "Content-Type": "application/json"}
-    payload = {"image_url": image_url}
-    response = requests.post(HAILOU_IMAGE_TO_VIDEO_URL, json=payload, headers=headers)
+            video_results.append({
+                "scene_number": i + 1,
+                "status": "success",
+                "video_data": f"data:{mime_type};base64,{video_base64}",
+                "prompt": prompt
+            })
+            print(f"-> Video for scene {i+1} created successfully.")
 
-    json_response = response.json()
-    print(f"Hailou Video Response JSON: {json_response}")
+        except Exception as e:
+            print(f"-> Failed to generate video for scene {i+1}: {e}")
+            video_results.append({
+                "scene_number": i + 1,
+                "status": "failed",
+                "error": str(e),
+                "prompt": prompt
+            })
 
-    if response.status_code == 200:
-        data_list = json_response.get("data")
-        if data_list and len(data_list) > 0:
-            video_url = data_list[0].get("url")
-            print("-> Video created successfully.")
-            return video_url
-        else:
-            error_message = json_response.get('base_resp', {}).get('status_msg', 'Unknown error from Hailou.')
-            print(f"-> Error from Hailou API: {error_message}")
-            return None
-    else:
-        print(f"-> HTTP Error creating video: {response.text}")
-        return None
+    print("--- Script processing finished ---")
+    return jsonify({"results": video_results})
 
-def chay_quy_trinh_hang_loat(y_tuong):
-    danh_sach_prompts = tao_nhieu_prompt_chuyen_sau(y_tuong)
-    if not danh_sach_prompts: return None
-    ket_qua_cuoi_cung = []
-    for i, item in enumerate(danh_sach_prompts):
-        style, prompt = item.get("style"), item.get("prompt")
-        print(f"\n--- Processing variant {i+1}/{len(danh_sach_prompts)}: Style '{style}' ---")
-        image_url = tao_hinh_anh_tu_prompt(prompt)
-        if image_url:
-            video_url = tao_video_tu_anh(image_url)
-            if video_url:
-                ket_qua_cuoi_cung.append({"style": style, "prompt": prompt, "video_url": video_url})
-    return ket_qua_cuoi_cung
 
-# --- PART 3: API ENDPOINT ---
-# This is the "door" that receives requests from the internet
-
-@app.route('/create-multiple-videos', methods=['POST'])
-def handle_multiple_video_creation():
-    data = request.get_json()
-    y_tuong = data.get('idea')
-    if not y_tuong: return jsonify({"error": "Please provide an idea"}), 400
-    try:
-        results = chay_quy_trinh_hang_loat(y_tuong)
-        if results: return jsonify({"results": results})
-        else: return jsonify({"error": "Could not create any video"}), 500
-    except Exception as e:
-        return jsonify({"error": f"System error: {str(e)}"}), 500
-
-# This line is only for testing on your own computer
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
