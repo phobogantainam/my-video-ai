@@ -117,7 +117,7 @@ def handle_script_generation():
             
             # Lưu kết quả dưới dạng base64 để gửi về frontend
             video_base64 = base64.b64encode(video_part.inline_data.data).decode('utf-8')
-            mime_type = video_part.mime_type
+            mime_type = video_part.inline_data.mime_type
 
             video_results.append({
                 "scene_number": i + 1,
