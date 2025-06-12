@@ -96,47 +96,57 @@ def handle_script_generation():
         print(f"\n--- Generating video for Scene {i+1} ---")
 
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash-latest')
-            generation_request = []
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    generation_request = []
 
-            if scene_type == 'image':
-                uploaded_file = uploaded_files.get(i)
-                if uploaded_file:
-                    generation_request.append(uploaded_file) # Thêm file đã upload
-                    generation_request.append(prompt)
-                    print(f"-> Requesting video from image with prompt: '{prompt}'")
-                else:
-                    raise Exception("Image for this scene failed to upload.")
-            else: # text scene
-                generation_request.append(prompt)
-                print(f"-> Requesting video from text: '{prompt}'")
-            
-            # Gọi API
-            response = model.generate_content(generation_request, request_options={"timeout": 600})
-            video_part = response.candidates[0].content.parts[0]
-            print(f"DEBUG: Video Part Object received from Google: {video_part}")
-            
-            # Lưu kết quả dưới dạng base64 để gửi về frontend
-            video_base64 = base64.b64encode(video_part.inline_data.data).decode('utf-8')
-            mime_type = video_part.inline_data.mime_type
+    if scene_type == 'image':
+        uploaded_file = uploaded_files.get(i)
+        if uploaded_file:
+            generation_request.append(uploaded_file)
+            generation_request.append(prompt)
+            print(f"-> Requesting video from image with prompt: '{prompt}'")
+        else:
+            raise Exception("Image for this scene failed to upload earlier.")
+    else: # text scene
+        generation_request.append(prompt)
+        print(f"-> Requesting video from text: '{prompt}'")
 
-            video_results.append({
-                "scene_number": i + 1,
-                "status": "success",
-                "video_data": f"data:{mime_type};base64,{video_base64}",
-                "prompt": prompt
-            })
-            print(f"-> Video for scene {i+1} created successfully.")
+    response = model.generate_content(generation_request, request_options={"timeout": 600})
+    part = response.candidates[0].content.parts[0]
 
-        except Exception as e:
-            print(f"-> Failed to generate video for scene {i+1}: {e}")
-            video_results.append({
-                "scene_number": i + 1,
-                "status": "failed",
-                "error": str(e),
-                "prompt": prompt
-            })
+    print(f"DEBUG: Part Object received from Google: {part}")
 
+    # LOGIC KIỂM TRA MỚI VÀ NGHIÊM NGẶT
+    # Ưu tiên kiểm tra xem AI có từ chối và trả lời bằng văn bản không
+    if hasattr(part, 'text') and part.text:
+        # Nếu có bất kỳ văn bản nào, đó là một lời từ chối hoặc một câu trả lời văn bản. Coi là lỗi.
+        raise Exception(part.text)
+
+    # Nếu không có text, kiểm tra xem có dữ liệu video không
+    elif hasattr(part, 'inline_data') and hasattr(part.inline_data, 'data') and part.inline_data.data:
+        # Đây là trường hợp thành công
+        video_base64 = base64.b64encode(part.inline_data.data).decode('utf-8')
+        mime_type = part.inline_data.mime_type
+        video_results.append({
+            "scene_number": scene_number,
+            "status": "success",
+            "video_data": f"data:{mime_type};base64,{video_base64}",
+            "prompt": prompt
+        })
+        print(f"-> Video for scene {scene_number} created successfully.")
+
+    else:
+        # Nếu không phải text cũng không phải video, đó là một lỗi không xác định
+        raise Exception("Received an unknown or empty response from Google AI.")
+
+except Exception as e:
+    print(f"-> Failed to generate video for scene {scene_number}: {e}")
+    video_results.append({
+        "scene_number": scene_number,
+        "status": "failed",
+        "error": str(e),
+        "prompt": prompt
+    })
     print("--- Script processing finished ---")
     return jsonify({"results": video_results})
 
