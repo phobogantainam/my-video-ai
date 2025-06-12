@@ -95,7 +95,7 @@ def handle_script_generation():
         
         print(f"\n--- Generating video for Scene {i+1} ---")
 
-        try:
+try:
     model = genai.GenerativeModel('gemini-1.5-flash-latest')
     generation_request = []
 
