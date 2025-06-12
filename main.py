@@ -114,6 +114,7 @@ def handle_script_generation():
             # Gọi API
             response = model.generate_content(generation_request, request_options={"timeout": 600})
             video_part = response.candidates[0].content.parts[0]
+            print(f"DEBUG: Video Part Object received from Google: {video_part}")
             
             # Lưu kết quả dưới dạng base64 để gửi về frontend
             video_base64 = base64.b64encode(video_part.inline_data.data).decode('utf-8')
